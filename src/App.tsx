@@ -1,54 +1,31 @@
-import { useState } from 'react';
 import { TranslationBox } from './components/TranslationBox';
 import { Button } from './components/ui/Button';
 import { Languages, ArrowDownUp, Sparkles } from 'lucide-react';
-
-const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'id', name: 'Indonesian' },
-];
+import { useTranslation } from './hooks';
+import { copyToClipboard, speakText } from './utils';
 
 export default function App() {
-  const [sourceText, setSourceText] = useState('');
-  const [translatedText, setTranslatedText] = useState('');
-  const [sourceLang, setSourceLang] = useState('en');
-  const [targetLang, setTargetLang] = useState('id');
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    sourceText,
+    translatedText,
+    sourceLang,
+    targetLang,
+    isLoading,
+    error,
+    languages,
+    setSourceText,
+    setSourceLang,
+    setTargetLang,
+    translate,
+    swapLanguages,
+  } = useTranslation();
 
-  const handleTranslate = async () => {
-    if (!sourceText.trim()) return;
-    
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(sourceText)}&langpair=${sourceLang}|${targetLang}`
-      );
-      const data = await response.json();
-      if (data.responseData) {
-        setTranslatedText(data.responseData.translatedText);
-      }
-    } catch (error) {
-      console.error('Translation error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const swapLanguages = () => {
-    setSourceLang(targetLang);
-    setTargetLang(sourceLang);
-    setSourceText(translatedText);
-    setTranslatedText(sourceText);
-  };
-
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const handleCopy = async (text: string) => {
+    await copyToClipboard(text);
   };
 
   const handleSpeak = (text: string, lang: string) => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang === 'en' ? 'en-US' : 'id-ID';
-    window.speechSynthesis.speak(utterance);
+    speakText(text, lang);
   };
 
   return (
@@ -83,7 +60,7 @@ export default function App() {
           <div className="flex items-center justify-center gap-4 p-4 glass rounded-2xl">
             <div className="flex-1 text-center">
               <span className="text-lg font-bold text-foreground/90">
-                {LANGUAGES.find(l => l.code === sourceLang)?.name}
+                {languages.find(l => l.code === sourceLang)?.name}
               </span>
             </div>
             <button
@@ -95,10 +72,17 @@ export default function App() {
             </button>
             <div className="flex-1 text-center">
               <span className="text-lg font-bold text-foreground/90">
-                {LANGUAGES.find(l => l.code === targetLang)?.name}
+                {languages.find(l => l.code === targetLang)?.name}
               </span>
             </div>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="p-4 glass rounded-xl border-red-500/50 text-red-400 text-sm text-center">
+              {error}
+            </div>
+          )}
 
           {/* Translation Boxes */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -108,7 +92,7 @@ export default function App() {
               onChange={setSourceText}
               language={sourceLang}
               onLanguageChange={setSourceLang}
-              languages={LANGUAGES}
+              languages={languages}
               placeholder="Enter text to translate..."
               onCopy={() => handleCopy(sourceText)}
               onSpeak={() => handleSpeak(sourceText, sourceLang)}
@@ -119,7 +103,7 @@ export default function App() {
               value={translatedText}
               language={targetLang}
               onLanguageChange={setTargetLang}
-              languages={LANGUAGES}
+              languages={languages}
               placeholder="Translation will appear here..."
               onCopy={() => handleCopy(translatedText)}
               onSpeak={() => handleSpeak(translatedText, targetLang)}
@@ -132,7 +116,7 @@ export default function App() {
             <Button
               variant="glossy"
               className="w-full md:w-auto md:min-w-[300px] h-16 text-lg font-bold tracking-wide rounded-2xl"
-              onClick={handleTranslate}
+              onClick={translate}
               disabled={isLoading || !sourceText}
             >
               {isLoading ? (
